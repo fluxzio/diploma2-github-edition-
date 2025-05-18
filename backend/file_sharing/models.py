@@ -1,8 +1,18 @@
+import uuid
+
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
-from cryptography.fernet import Fernet
-import os
+
+
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
+    username = models.CharField(max_length=150, unique=True)
+    first_name = models.CharField(max_length=30,default='', blank=True)
+    last_name = models.CharField(max_length=30,default='', blank=True)
+
+    def __str__(self):
+        return self.email
 
 class File(models.Model):
     name = models.CharField(max_length=255)
@@ -38,15 +48,33 @@ class FileShare(models.Model):
         self.downloaded_at = timezone.now()
         self.save()
 
+
 class UserProfile(models.Model):
+    ROLE_CHOICES = (
+        ('admin', 'Администратор'),
+        ('manager', 'Менеджер'),
+        ('user', 'Пользователь'),
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    role = models.CharField(
+        max_length=10, choices=ROLE_CHOICES, default='user')
     bio = models.TextField(blank=True)
-    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to='profile_pictures/', null=True, blank=True)
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=32, null=True, blank=True)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     storage_used = models.BigIntegerField(default=0)
-    storage_limit = models.BigIntegerField(default=1073741824)  # 1GB in bytes
+    storage_limit = models.BigIntegerField(default=1073741824)  # 1GB
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timezone.timedelta(hours=1)

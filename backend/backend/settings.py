@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -78,10 +81,15 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# TODO: Подставь свой значения 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DJANGO_DB_NAME", "mydatabase"),
+        "USER": os.getenv("DJANGO_DB_USER", "posgtres"),
+        "PASSWORD": os.getenv("DJANGO_DB_PASSWORD", "password"),
+        "HOST": os.getenv("DJANGO_DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DJANGO_DB_PORT", "5432"),
     }
 }
 
@@ -108,7 +116,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-RU'
 
 TIME_ZONE = 'UTC'
 
@@ -126,7 +134,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+FRONTEND_URL = 'http://localhost:5173'  # URL of your React frontend
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # React development server
@@ -160,8 +168,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = ''  # Add your email
-EMAIL_HOST_PASSWORD = ''  # Add your email password
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER') 
+EMAIL_HOST_PASSWORD = os.getenv(
+    'EMAIL_HOST_PASSWORD')  
 
 # Media files
 MEDIA_URL = '/media/'
@@ -179,7 +188,6 @@ if not os.path.exists(MEDIA_ROOT):
 if not os.path.exists(os.path.join(MEDIA_ROOT, 'encrypted_files')):
     os.makedirs(os.path.join(MEDIA_ROOT, 'encrypted_files'))
 
-# Rest Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication', 
@@ -246,3 +254,7 @@ if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT)
 if not os.path.exists(os.path.join(MEDIA_ROOT, 'encrypted_files')):
     os.makedirs(os.path.join(MEDIA_ROOT, 'encrypted_files'))
+
+
+CELERY_BROKER_URL ='redis://redis:6379/0'
+AUTH_USER_MODEL = 'file_sharing.User'

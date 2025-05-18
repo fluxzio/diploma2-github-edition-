@@ -34,7 +34,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await api.post('/api/users/login/', formData);
+      const response = await api.post('/api/auth/login/', formData);
       const { token } = response.data;
       await login(token); // авторизация через context
     } catch (error: any) {

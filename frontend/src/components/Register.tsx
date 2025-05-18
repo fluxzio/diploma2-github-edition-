@@ -45,14 +45,37 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await api.post('/api/users/register/', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-      });
+      await api.post("/api/auth/register/", {
+			username: formData.username,
+			email: formData.email,
+			password: formData.password,
+      password_confirm: formData.confirm_password,
+		});
       navigate('/login');
-    } catch {
-      setError('Регистрация не удалась. Попробуйте позже.');
+    } catch (err: any){
+      if (err.response?.status === 400) {
+        // Check for field errors and display the first one found
+        let errorMessage = 'Ошибка при регистрации. Попробуйте позже.';
+        if (err.response.data) {
+          const data = err.response.data;
+          if (typeof data === 'string') {
+            errorMessage = data;
+          } else if (data.non_field_errors) {
+            errorMessage = data.non_field_errors[0];
+          } else if (data.username) {
+            errorMessage = data.username[0];
+          } else if (data.email) {
+            errorMessage = data.email[0];
+          } else if (data.password) {
+            errorMessage = data.password[0];
+          }
+        }
+        setError(errorMessage);
+      } else if (err.response?.status === 500) {
+        setError('Ошибка сервера. Попробуйте позже.');
+      } else {
+        setError('Произошла ошибка. Попробуйте позже.');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,10 +1,12 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
-from .models import File, FileShare, UserProfile
+
 from django.utils import timezone
-from cryptography.fernet import Fernet
-import os
 from django.conf import settings
+
+from .models import *
+
+import os
+from cryptography.fernet import Fernet
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -104,5 +106,5 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = User.objects.create_user(**validated_data)
-        UserProfile.objects.create(user=user)
+        UserProfile.objects.create(user=user,role='user')
         return user 
