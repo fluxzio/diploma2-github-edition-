@@ -42,15 +42,28 @@ class UserViewSet(viewsets.ModelViewSet[User]):
         return Response(serializer.data)
     
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['post'],url_path='change-password')
     def change_password(self, request):
-        user = request.user
-        old_password = request.data.get('old_password')
+        user: User = request.user
+        old_password = request.data.get('current_password')
+        confirm_password = request.data.get('confirm_password')
         new_password = request.data.get('new_password')
+
+        if not old_password or not new_password or not confirm_password:
+            return Response(
+                {'error': 'Пожалуйста, заполните все поля'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if new_password != confirm_password:
+            return Response(
+                {'error': 'Пароли не совпадают'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not user.check_password(old_password):
             return Response(
-                {'error': 'Invalid old password'},
+                {'error': 'Неверный текущий пароль'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
