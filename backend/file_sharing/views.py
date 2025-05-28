@@ -92,7 +92,20 @@ class EncryptedFileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return File.objects.filter(owner=self.request.user)
+        user = self.request.user
+        # Админ или персонал видят все файлы
+        try:
+            if user.is_staff or (hasattr(user, "userprofile") and user.userprofile.role == "manager"):
+                return File.objects.all()
+        except Exception:
+            pass
+        # Обычный пользователь — только свои файлы
+        return File.objects.filter(owner=user)
+
+    def get_permissions(self):
+        if self.action == 'destroy':
+            return [IsAuthenticated(), CanDeleteFile()]
+        return [IsAuthenticated()]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-	Box,
 	Container,
 	Typography,
 	Tabs,
@@ -17,8 +16,8 @@ import {
 } from "@mui/material";
 import { api } from "../api";
 import { useSession } from "../providers/useSession";
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { format } from "date-fns";
+import { ru } from "date-fns/locale";
 
 interface User {
 	id: number;
@@ -26,6 +25,7 @@ interface User {
 	email: string;
 	is_staff: boolean;
 	is_superuser: boolean;
+	role?: string;
 	date_joined: string;
 }
 
@@ -33,23 +33,41 @@ interface FileOwner {
 	id: number;
 	username: string;
 	email: string;
+	is_staff: boolean;
+	is_superuser: boolean;
+	role?: string;
 }
 
 interface File {
 	id: number;
 	name: string;
-	owner: string | FileOwner;
+	owner: FileOwner;
 	size: number;
-	created_at: string;
-  updated_at: string;
+	upload_date: string;
 	is_public: boolean;
 }
 
-const renderOwner = (owner: string | FileOwner) => {
-	if (typeof owner === "object" && owner !== null) {
+const formatDate = (date: string) => {
+	try {
+		return format(new Date(date), "dd.MM.yyyy HH:mm", { locale: ru });
+	} catch {
+		return date || "-";
+	}
+};
+
+const formatSize = (bytes: number) => {
+	if (bytes === 0) return "0 B";
+	const k = 1024;
+	const i = Math.floor(Math.log(bytes) / Math.log(k));
+	const sizes = ["B", "KB", "MB", "GB"];
+	return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+};
+
+const renderOwner = (owner: FileOwner) => {
+	if (owner) {
 		return owner.username;
 	}
-	return owner || "-";
+	return "-";
 };
 
 const AdminPanel = () => {
@@ -111,32 +129,38 @@ const AdminPanel = () => {
 		}
 	};
 
-	const formatDate = (date: string) => {
-		try {
-			return format(new Date(date), "dd.MM.yyyy HH:mm", { locale: ru });
-		} catch {
-			return date || "-";
-		}
-	};
-  
-	const formatSize = (bytes: number) => {
-		if (bytes === 0) return "0 B";
-		const k = 1024;
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		const sizes = ["B", "KB", "MB", "GB"];
-		return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-	};
+	// Правила удаления файла
+	const canDeleteFile = (file: File, currentUser: User): boolean => {
+		if (!currentUser || !file.owner) return false;
 
-	// Правила удаления (строго по бизнес-логике)
-	const canDeleteUser = (target: User): boolean => {
-		if (!currentUser) return false;
-		if (target.id === currentUser.id) return false; // нельзя удалить себя
-		if (target.is_staff) {
-			// никто, кроме суперюзера, не может удалить админа
-			if (currentUser.is_superuser) return true;
-			return false;
+		// Всегда можно удалить свой файл
+		if (file.owner.id === currentUser.id) return true;
+
+		// Суперюзер может всё
+		if (currentUser.is_superuser) return true;
+
+		// Админ
+		if (currentUser.is_staff) {
+			// нельзя удалять файлы других админов
+			if (file.owner.is_staff && file.owner.id !== currentUser.id)
+				return false;
+			return true;
 		}
-		return true;
+
+		// Персонал (менеджер)
+		if (currentUser.role === "manager") {
+			// нельзя удалять файлы админов и других сотрудников
+			if (file.owner.is_staff) return false;
+			if (
+				file.owner.role === "manager" &&
+				file.owner.id !== currentUser.id
+			)
+				return false;
+			return true;
+		}
+
+		// Обычный пользователь — только свои файлы
+		return false;
 	};
 
 	return (
@@ -182,6 +206,8 @@ const AdminPanel = () => {
 											? "Superuser"
 											: user.is_staff
 											? "Admin"
+											: user.role === "manager"
+											? "Персонал"
 											: "User"}
 									</TableCell>
 									<TableCell>
@@ -205,7 +231,7 @@ const AdminPanel = () => {
 											sx={{ mr: 1 }}
 											disabled={
 												user.id === currentUser?.id
-											} // нельзя менять себе роль
+											}
 										>
 											{user.is_staff
 												? "Сделать User"
@@ -226,10 +252,14 @@ const AdminPanel = () => {
 													size="small"
 													color="error"
 													disabled={
-														!canDeleteUser(user)
+														user.id ===
+															currentUser?.id ||
+														(user.is_staff &&
+															!currentUser?.is_superuser)
 													}
 													onClick={() =>
-														canDeleteUser(user) &&
+														user.id !==
+															currentUser?.id &&
 														handleDeleteUser(
 															user.id
 														)
@@ -278,7 +308,7 @@ const AdminPanel = () => {
 										{formatSize(file.size)}
 									</TableCell>
 									<TableCell>
-										{formatDate(file.created_at)}
+										{formatDate(file.upload_date)}
 									</TableCell>
 									<TableCell>
 										{file.is_public
@@ -286,16 +316,44 @@ const AdminPanel = () => {
 											: "Приватный"}
 									</TableCell>
 									<TableCell align="right">
-										<Button
-											variant="outlined"
-											size="small"
-											color="error"
-											onClick={() =>
-												handleDeleteFile(file.id)
+										<Tooltip
+											title={
+												file.owner.id ===
+												currentUser?.id
+													? "Вы можете удалить свой файл"
+													: file.owner.is_staff
+													? "Нельзя удалить файл администратора"
+													: file.owner.role ===
+													  "manager"
+													? "Нельзя удалить файл персонала"
+													: ""
 											}
 										>
-											Удалить
-										</Button>
+											<span>
+												<Button
+													variant="outlined"
+													size="small"
+													color="error"
+													disabled={
+														!canDeleteFile(
+															file,
+															currentUser!
+														)
+													}
+													onClick={() =>
+														canDeleteFile(
+															file,
+															currentUser!
+														) &&
+														handleDeleteFile(
+															file.id
+														)
+													}
+												>
+													Удалить
+												</Button>
+											</span>
+										</Tooltip>
 									</TableCell>
 								</TableRow>
 							))}

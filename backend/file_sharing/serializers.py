@@ -10,11 +10,19 @@ from cryptography.fernet import Fernet
 
 
 class UserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name',
-                  'last_name', 'is_staff', 'is_superuser','date_joined')
+                  'last_name', 'is_staff', 'is_superuser', 'role')
         read_only_fields = ('id',)
+
+    def get_role(self, obj):
+        try:
+            return obj.userprofile.role
+        except Exception:
+            return None
 
 class FileSerializer(serializers.ModelSerializer):
     owner = UserSerializer(read_only=True)
