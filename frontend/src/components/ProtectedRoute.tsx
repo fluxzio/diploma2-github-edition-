@@ -26,9 +26,8 @@ const ProtectedRoute = ({ children, adminOnly = false }: Props) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Если требуется админ и пользователь не админ — на dashboard
-  if (adminOnly && !user?.is_staff) {
-    return <Navigate to="/dashboard" replace />;
+  if (adminOnly && !(user?.is_staff || user?.is_superuser)) {
+		return <Navigate to="/dashboard" replace />;
   }
 
   return children;

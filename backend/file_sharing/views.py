@@ -24,7 +24,7 @@ from cryptography.fernet import Fernet
 from .tasks import *
 from .serializers import *
 from .models import *
-
+from .permissions import *
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,11 @@ class UserViewSet(viewsets.ModelViewSet[User]):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [IsAuthenticated(), CanDeleteUser()]
+        return [IsAuthenticated()]
 
 
     @action(detail=False, methods=['get'])
